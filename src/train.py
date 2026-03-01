@@ -47,11 +47,13 @@ def plot_feature_importance(model, feature_names):
 @click.option("--n-estimators", default=200, type=int)
 @click.option("--min-samples-leaf", default=5, type=int)
 @click.option("--max-depth", default=None, type=int)
+@click.option("--random-state", default=42, type=int)
 def main(
     data_path,
     n_estimators,
     max_depth,
     min_samples_leaf,
+    random_state,
 ):
 
     mlflow.set_experiment("Bike_Sharing_RF_Experiment")
@@ -59,10 +61,10 @@ def main(
     df = pd.read_csv(data_path)
     X, y = preprocess_data(df)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state)
 
     with mlflow.start_run(
-        run_name=f"RF_depth={max_depth}_trees={n_estimators}"
+        run_name=f"RF_depth={max_depth}_trees={n_estimators}_min_samples_leaf={min_samples_leaf}_random_state={random_state}"
     ):  
 
         mlflow.set_tag("model_type", "RandomForestRegressor")
@@ -71,12 +73,14 @@ def main(
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_param("max_depth", max_depth)
         mlflow.log_param("min_samples_leaf", min_samples_leaf)
+        mlflow.log_param("random_state", random_state)
 
         model = RandomForestRegressor(
             n_estimators=n_estimators,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
-            n_jobs=-1
+            n_jobs=-1,
+            random_state=random_state
         )
 
         model.fit(X_train, y_train)
