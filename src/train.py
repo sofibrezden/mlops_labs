@@ -46,7 +46,7 @@ def main(input_dir, model_dir, n_estimators, max_depth, min_samples_leaf, random
 
     mlflow.set_experiment("Bike_Sharing_RF_Experiment")
 
-    with mlflow.start_run():
+    with mlflow.start_run(run_name=f"RF_depth={max_depth}_trees={n_estimators}_min_samples_leaf={min_samples_leaf}_random_state={random_state}"):
 
         mlflow.log_params({
             "n_estimators": n_estimators,
