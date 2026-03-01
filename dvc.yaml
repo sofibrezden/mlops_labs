@@ -1,0 +1,21 @@
+stages:
+  prepare:
+    cmd: python src/prepare.py data/raw/dataset.csv data/prepared
+    deps:
+      - data/raw/dataset.csv
+      - src/prepare.py
+    outs:
+      - data/prepared
+
+  train:
+    cmd: >
+      python src/train.py data/prepared data/models
+      --n-estimators 400
+      --max-depth 12
+      --min-samples-leaf 5
+      --random-state 42
+    deps:
+      - data/prepared
+      - src/train.py
+    outs:
+      - data/models

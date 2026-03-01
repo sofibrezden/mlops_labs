@@ -1,34 +1,17 @@
 import os
 import click
-import mlflow
-import mlflow.sklearn
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import mlflow
+import mlflow.sklearn
 import joblib
+import matplotlib.pyplot as plt
+
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error,  mean_absolute_error, r2_score
 
 
-def preprocess_data(df):
-
-    df["datetime"] = pd.to_datetime(df["datetime"])
-
-    df["hour"] = df["datetime"].dt.hour
-    df["day"] = df["datetime"].dt.day
-    df["month"] = df["datetime"].dt.month
-    df["weekday"] = df["datetime"].dt.weekday
-
-    df = df.drop(["datetime", "casual", "registered"], axis=1)
-
-    X = df.drop("count", axis=1)
-    y = df["count"]
-
-    return X, y
-
-
-def plot_feature_importance(model, feature_names):
+def plot_feature_importance(model, feature_names, output_path):
     importances = model.feature_importances_
     indices = np.argsort(importances)
 
@@ -37,45 +20,46 @@ def plot_feature_importance(model, feature_names):
     plt.barh(range(len(indices)), importances[indices])
     plt.yticks(range(len(indices)), [feature_names[i] for i in indices])
     plt.tight_layout()
-
-    plt.savefig("feature_importance.png")
+    plt.savefig(output_path)
     plt.close()
 
 
 @click.command()
-@click.option("--data-path", default="data/raw/combined.csv", help="Path to dataset")
-@click.option("--n-estimators", default=200, type=int)
-@click.option("--min-samples-leaf", default=5, type=int)
-@click.option("--max-depth", default=None, type=int)
-def main(
-    data_path,
-    n_estimators,
-    max_depth,
-    min_samples_leaf,
-):
+@click.argument("input_dir")
+@click.argument("model_dir")
+@click.option("--n-estimators", type=int)
+@click.option("--max-depth", type=int)
+@click.option("--min-samples-leaf", type=int)
+@click.option("--random-state", type=int)
+def main(input_dir, model_dir, n_estimators, max_depth, min_samples_leaf, random_state):
+
+    os.makedirs(model_dir, exist_ok=True)
+
+    train_df = pd.read_csv(os.path.join(input_dir, "train.csv"))
+    test_df = pd.read_csv(os.path.join(input_dir, "test.csv"))
+
+    X_train = train_df.drop("count", axis=1)
+    y_train = train_df["count"]
+
+    X_test = test_df.drop("count", axis=1)
+    y_test = test_df["count"]
 
     mlflow.set_experiment("Bike_Sharing_RF_Experiment")
 
-    df = pd.read_csv(data_path)
-    X, y = preprocess_data(df)
+    with mlflow.start_run():
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    with mlflow.start_run(
-        run_name=f"RF_depth={max_depth}_trees={n_estimators}"
-    ):  
-
-        mlflow.set_tag("model_type", "RandomForestRegressor")
-        mlflow.set_tag("dataset", "Bike Sharing Demand")
-
-        mlflow.log_param("n_estimators", n_estimators)
-        mlflow.log_param("max_depth", max_depth)
-        mlflow.log_param("min_samples_leaf", min_samples_leaf)
+        mlflow.log_params({
+            "n_estimators": n_estimators,
+            "max_depth": max_depth,
+            "min_samples_leaf": min_samples_leaf,
+            "random_state": random_state
+        })
 
         model = RandomForestRegressor(
             n_estimators=n_estimators,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
+            random_state=random_state,
             n_jobs=-1
         )
 
@@ -102,15 +86,15 @@ def main(
         mlflow.log_metric("r2_train", r2_train)
         mlflow.log_metric("r2_test", r2_test)
 
-        os.makedirs("models", exist_ok=True)
-        model_name = f"rf_depth={max_depth}_trees={n_estimators}"
-        model_path = f"models/{model_name}"
-        joblib.dump(model, model_path + ".pkl")
+        model_path = os.path.join(model_dir, "model.pkl")
+        joblib.dump(model, model_path)
 
-        mlflow.sklearn.log_model(model, model_name)
+        mlflow.sklearn.log_model(model, name="random_forest_model")
+        mlflow.log_artifact(model_path)
 
-        plot_feature_importance(model, X.columns)
-        mlflow.log_artifact("feature_importance.png")
+        plot_path = os.path.join(model_dir, "feature_importance.png")
+        plot_feature_importance(model, X_train.columns, plot_path)
+        mlflow.log_artifact(plot_path)
 
 
 if __name__ == "__main__":
