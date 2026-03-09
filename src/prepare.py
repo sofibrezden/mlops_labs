@@ -30,10 +30,7 @@ if __name__ == "__main__":
     df = preprocess(df)
     df = df.sort_values("day")
 
-    split_index = int(len(df) * 0.8)
-
-    train_df = df.iloc[:split_index]
-    test_df = df.iloc[split_index:]
+    train_df, test_df = train_test_split(df, test_size=0.2, shuffle=False)
 
     train_df.to_csv(os.path.join(output_dir, "train.csv"), index=False)
     test_df.to_csv(os.path.join(output_dir, "test.csv"), index=False)
