@@ -82,6 +82,19 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: sqlite:///mlflow.db
       
+      - name: Organize artifacts
+        run: |
+          mkdir -p artifacts
+          if [ -f "models/best_model.pkl" ]; then
+            cp models/best_model.pkl artifacts/
+          fi
+          if [ -f "data/models/model.pkl" ]; then
+            cp data/models/model.pkl artifacts/
+          fi
+          if [ -f "data/models/feature_importance.png" ]; then
+            cp data/models/feature_importance.png artifacts/
+          fi
+      
       - name: Run artifact validation tests
         run: |
           python -m pytest tests/test_artifacts.py -v --tb=short
@@ -89,6 +102,9 @@ jobs:
       - name: Export metrics
         run: |
           python scripts/export_metrics.py
+          if [ -f "metrics.json" ]; then
+            cp metrics.json artifacts/
+          fi
       
       - name: Run quality gate tests
         run: |
@@ -146,7 +162,5 @@ jobs:
         with:
           name: trained-model
           path: |
-            models/best_model.pkl
-            artifacts/metrics.json
-            artifacts/feature_importance.png
+            artifacts/
           retention-days: 30
