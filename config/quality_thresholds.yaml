@@ -1,0 +1,13 @@
+quality_gate:
+  rmse_test_max: 150.0
+  mae_test_max: 100.0
+  r2_test_min: 0.5
+  
+  overfitting_gap_max: 0.3
+  
+  prediction_min: 0
+  prediction_max: 1500
+
+description: |
+  Quality gate thresholds for model validation.
+  Models must meet these criteria to pass quality gates in CI/CD.

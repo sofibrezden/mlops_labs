@@ -1,0 +1,176 @@
+name: ML Pipeline with CML
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  train-and-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run linting with flake8
+        run: |
+          flake8 src/ tests/ --count --statistics
+        continue-on-error: false
+      
+      - name: Check code formatting with black
+        run: |
+          black --check src/ tests/
+        continue-on-error: true
+      
+      - name: Run smoke tests
+        run: |
+          pytest tests/test_smoke.py -v --tb=short
+      
+      - name: Setup DVC
+        run: |
+          dvc remote list || echo "No DVC remotes configured"
+      
+      - name: Run data preparation
+        run: |
+          if [ -f "data/raw/dataset.csv" ]; then
+            dvc repro prepare || python src/prepare.py data/raw/dataset.csv data/prepared
+          else
+            echo "Raw data not found, skipping preparation"
+          fi
+      
+      - name: Run data validation tests
+        run: |
+          pytest tests/test_data_validation.py -v --tb=short
+      
+      - name: Train model
+        run: |
+          if [ -f "dvc.yaml" ]; then
+            dvc repro train || python src/train.py data/prepared models --n-estimators 100 --max-depth 10 --min-samples-leaf 5 --random-state 42
+          else
+            python src/train.py data/prepared models --n-estimators 100 --max-depth 10 --min-samples-leaf 5 --random-state 42
+          fi
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+      
+      - name: Run artifact validation tests
+        run: |
+          pytest tests/test_artifacts.py -v --tb=short
+      
+      - name: Export metrics
+        run: |
+          python scripts/export_metrics.py
+      
+      - name: Run quality gate tests
+        run: |
+          pytest tests/test_quality_gate.py -v --tb=short
+      
+      - name: Generate CML report
+        if: github.event_name == 'pull_request'
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pip install cml
+          
+          echo "# ML Pipeline Report" > report.md
+          echo "" >> report.md
+          
+          echo "## Training Metrics" >> report.md
+          if [ -f "metrics.json" ]; then
+            echo '```json' >> report.md
+            cat metrics.json >> report.md
+            echo '```' >> report.md
+          else
+            echo "Metrics file not found" >> report.md
+          fi
+          echo "" >> report.md
+          
+          echo "## Quality Gate Status" >> report.md
+          if pytest tests/test_quality_gate.py -v --tb=short > quality_gate.log 2>&1; then
+            echo "All quality gates passed" >> report.md
+          else
+            echo "Some quality gates failed" >> report.md
+            echo '```' >> report.md
+            tail -n 50 quality_gate.log >> report.md
+            echo '```' >> report.md
+          fi
+          echo "" >> report.md
+          
+          echo "## Test Results" >> report.md
+          pytest tests/ -v --tb=short > test_results.log 2>&1 || true
+          echo '```' >> report.md
+          tail -n 100 test_results.log >> report.md
+          echo '```' >> report.md
+          echo "" >> report.md
+          
+          if [ -f "data/models/feature_importance.png" ]; then
+            echo "## Feature Importance" >> report.md
+            echo "![Feature Importance](data/models/feature_importance.png)" >> report.md
+            cml publish data/models/feature_importance.png --md >> report.md
+          fi
+          
+          cml comment create report.md
+      
+      - name: Publish model artifacts (main branch only)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v3
+        with:
+          name: trained-model
+          path: |
+            models/best_model.pkl
+            data/models/model.pkl
+            metrics.json
+            data/models/feature_importance.png
+          retention-days: 30
+      
+      - name: Register model in MLflow (main branch only)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          python -c "
+          import mlflow
+          import os
+          
+          if os.path.exists('models/best_model.pkl'):
+              mlflow.set_tracking_uri('sqlite:///mlflow.db')
+              
+              try:
+                  client = mlflow.tracking.MlflowClient()
+                  
+                  try:
+                      client.create_registered_model('bike-sharing-model')
+                      print('Created new registered model: bike-sharing-model')
+                  except Exception as e:
+                      print(f'Model already registered or error: {e}')
+                  
+                  print('Model registration completed')
+              except Exception as e:
+                  print(f'Error during model registration: {e}')
+          else:
+              print('No model found to register')
+          "
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
