@@ -71,9 +71,13 @@ jobs:
       - name: Train model
         run: |
           if [ -f "dvc.yaml" ]; then
-            dvc repro train || python src/train.py data/prepared models --n-estimators 100 --max-depth 10 --min-samples-leaf 5 --random-state 42
+            dvc repro train || python src/train.py data/prepared data/models --n-estimators 100 --max-depth 10 --min-samples-leaf 5 --random-state 42
           else
-            python src/train.py data/prepared models --n-estimators 100 --max-depth 10 --min-samples-leaf 5 --random-state 42
+            python src/train.py data/prepared data/models --n-estimators 100 --max-depth 10 --min-samples-leaf 5 --random-state 42
+          fi
+          mkdir -p models
+          if [ -f "data/models/model.pkl" ]; then
+            cp data/models/model.pkl models/best_model.pkl
           fi
         env:
           MLFLOW_TRACKING_URI: sqlite:///mlflow.db
