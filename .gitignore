@@ -5,6 +5,7 @@ venv/
 data/*
 !data/**/*.dvc
 !data/**/.gitignore
+!data/**/.gitkeep
 models/
 .ipynb_checkpoints
 mlruns/
