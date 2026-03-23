@@ -1,0 +1,20 @@
+sampler: random
+n_trials: 20
+metric: rmse
+direction: minimize
+use_cv: false
+cv_folds: 5
+
+random_forest:
+  n_estimators:
+    low: 100
+    high: 500
+  max_depth:
+    low: 5
+    high: 20
+  min_samples_split:
+    low: 2
+    high: 10
+  min_samples_leaf:
+    low: 1
+    high: 5

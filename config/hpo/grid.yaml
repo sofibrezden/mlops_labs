@@ -1,0 +1,10 @@
+sampler: grid
+n_trials: 20
+metric: rmse
+direction: minimize
+
+random_forest:
+  n_estimators: [100, 200, 300]
+  max_depth: [5, 10, 15]
+  min_samples_split: [2, 5]
+  min_samples_leaf: [1, 2]

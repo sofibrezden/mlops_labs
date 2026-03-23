@@ -1,0 +1,20 @@
+defaults:
+  - model: random_forest
+  - hpo: optuna
+  - _self_
+
+seed: 42
+
+mlflow:
+  tracking_uri: "http://127.0.0.1:5000"
+  experiment_name: "LAB_3_Bike_Sharing_RF_Experiment"
+  log_model: true
+
+data:
+  train_path: "data/prepared/train.csv"
+  test_path: "data/prepared/test.csv"
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
