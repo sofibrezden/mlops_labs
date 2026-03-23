@@ -8,3 +8,8 @@ jupyter
 dvc
 optuna
 hydra-core
+pytest
+pytest-cov
+flake8
+black
+click
