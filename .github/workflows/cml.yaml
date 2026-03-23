@@ -132,10 +132,10 @@ jobs:
           echo '```' >> report.md
           echo "" >> report.md
           
-          if [ -f "data/models/feature_importance.png" ]; then
+          if [ -f "artifacts/feature_importance.png" ]; then
             echo "## Feature Importance" >> report.md
-            echo "![Feature Importance](data/models/feature_importance.png)" >> report.md
-            cml publish data/models/feature_importance.png --md >> report.md
+            echo "![Feature Importance](artifacts/feature_importance.png)" >> report.md
+            cml publish artifacts/feature_importance.png --md >> report.md
           fi
           
           cml comment create report.md
@@ -147,35 +147,6 @@ jobs:
           name: trained-model
           path: |
             models/best_model.pkl
-            data/models/model.pkl
-            metrics.json
-            data/models/feature_importance.png
+            artifacts/metrics.json
+            artifacts/feature_importance.png
           retention-days: 30
-      
-      - name: Register model in MLflow (main branch only)
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        run: |
-          python -c "
-          import mlflow
-          import os
-          
-          if os.path.exists('models/best_model.pkl'):
-              mlflow.set_tracking_uri('sqlite:///mlflow.db')
-              
-              try:
-                  client = mlflow.tracking.MlflowClient()
-                  
-                  try:
-                      client.create_registered_model('bike-sharing-model')
-                      print('Created new registered model: bike-sharing-model')
-                  except Exception as e:
-                      print(f'Model already registered or error: {e}')
-                  
-                  print('Model registration completed')
-              except Exception as e:
-                  print(f'Error during model registration: {e}')
-          else:
-              print('No model found to register')
-          "
-        env:
-          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
