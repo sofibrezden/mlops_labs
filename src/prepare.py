@@ -20,8 +20,8 @@ def preprocess(df):
 
 if __name__ == "__main__":
 
-    input_file = sys.argv[1]      # data/raw/dataset.csv
-    output_dir = sys.argv[2]      # data/prepared
+    input_file = sys.argv[1]  # data/raw/dataset.csv
+    output_dir = sys.argv[2]  # data/prepared
 
     os.makedirs(output_dir, exist_ok=True)
 

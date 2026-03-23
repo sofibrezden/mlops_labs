@@ -8,7 +8,7 @@ import joblib
 import matplotlib.pyplot as plt
 
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error,  mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 
 def plot_feature_importance(model, feature_names, output_path):
@@ -46,21 +46,28 @@ def main(input_dir, model_dir, n_estimators, max_depth, min_samples_leaf, random
 
     mlflow.set_experiment("Bike_Sharing_RF_Experiment")
 
-    with mlflow.start_run(run_name=f"RF_depth={max_depth}_trees={n_estimators}_min_samples_leaf={min_samples_leaf}_random_state={random_state}"):
+    run_name = (
+        f"RF_depth={max_depth}_trees={n_estimators}_"
+        f"min_samples_leaf={min_samples_leaf}_"
+        f"random_state={random_state}"
+    )
+    with mlflow.start_run(run_name=run_name):
 
-        mlflow.log_params({
-            "n_estimators": n_estimators,
-            "max_depth": max_depth,
-            "min_samples_leaf": min_samples_leaf,
-            "random_state": random_state
-        })
+        mlflow.log_params(
+            {
+                "n_estimators": n_estimators,
+                "max_depth": max_depth,
+                "min_samples_leaf": min_samples_leaf,
+                "random_state": random_state,
+            }
+        )
 
         model = RandomForestRegressor(
             n_estimators=n_estimators,
             max_depth=max_depth,
             min_samples_leaf=min_samples_leaf,
             random_state=random_state,
-            n_jobs=-1
+            n_jobs=-1,
         )
 
         model.fit(X_train, y_train)

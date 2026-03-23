@@ -10,28 +10,28 @@ from omegaconf import DictConfig
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
 
+
 def load_data(train_path, test_path):
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path)
-    
+
     X_train = train_df.drop("count", axis=1)
     y_train = train_df["count"]
-    
+
     X_test = test_df.drop("count", axis=1)
     y_test = test_df["count"]
-    
+
     return X_train, X_test, y_train, y_test
 
+
 def build_model(params, seed):
-    return RandomForestRegressor(
-        random_state=seed,
-        n_jobs=-1,
-        **params
-    )
+    return RandomForestRegressor(random_state=seed, n_jobs=-1, **params)
+
 
 def objective_factory(cfg, X_train, X_test, y_train, y_test):
 
@@ -39,49 +39,36 @@ def objective_factory(cfg, X_train, X_test, y_train, y_test):
 
         if cfg.hpo.sampler == "grid":
             params = {
-                "n_estimators": trial.suggest_categorical(
-                    "n_estimators",
-                    cfg.hpo.random_forest.n_estimators
-                ),
-                "max_depth": trial.suggest_categorical(
-                    "max_depth",
-                    cfg.hpo.random_forest.max_depth
-                ),
+                "n_estimators": trial.suggest_categorical("n_estimators", cfg.hpo.random_forest.n_estimators),
+                "max_depth": trial.suggest_categorical("max_depth", cfg.hpo.random_forest.max_depth),
                 "min_samples_split": trial.suggest_categorical(
-                    "min_samples_split",
-                    cfg.hpo.random_forest.min_samples_split
+                    "min_samples_split", cfg.hpo.random_forest.min_samples_split
                 ),
                 "min_samples_leaf": trial.suggest_categorical(
-                    "min_samples_leaf",
-                    cfg.hpo.random_forest.min_samples_leaf
+                    "min_samples_leaf", cfg.hpo.random_forest.min_samples_leaf
                 ),
             }
         else:
             params = {
                 "n_estimators": trial.suggest_int(
-                    "n_estimators",
-                    cfg.hpo.random_forest.n_estimators.low,
-                    cfg.hpo.random_forest.n_estimators.high
+                    "n_estimators", cfg.hpo.random_forest.n_estimators.low, cfg.hpo.random_forest.n_estimators.high
                 ),
                 "max_depth": trial.suggest_int(
-                    "max_depth",
-                    cfg.hpo.random_forest.max_depth.low,
-                    cfg.hpo.random_forest.max_depth.high
+                    "max_depth", cfg.hpo.random_forest.max_depth.low, cfg.hpo.random_forest.max_depth.high
                 ),
                 "min_samples_split": trial.suggest_int(
                     "min_samples_split",
                     cfg.hpo.random_forest.min_samples_split.low,
-                    cfg.hpo.random_forest.min_samples_split.high
+                    cfg.hpo.random_forest.min_samples_split.high,
                 ),
                 "min_samples_leaf": trial.suggest_int(
                     "min_samples_leaf",
                     cfg.hpo.random_forest.min_samples_leaf.low,
-                    cfg.hpo.random_forest.min_samples_leaf.high
+                    cfg.hpo.random_forest.min_samples_leaf.high,
                 ),
             }
 
-        with mlflow.start_run(nested=True,
-                              run_name=f"trial_{trial.number}"):
+        with mlflow.start_run(nested=True, run_name=f"trial_{trial.number}"):
 
             mlflow.log_params(params)
 
@@ -113,9 +100,8 @@ def objective_factory(cfg, X_train, X_test, y_train, y_test):
 
     return objective
 
-@hydra.main(version_base=None,
-            config_path="../config",
-            config_name="config")
+
+@hydra.main(version_base=None, config_path="../config", config_name="config")
 def main(cfg: DictConfig):
 
     set_seed(cfg.seed)
@@ -138,19 +124,13 @@ def main(cfg: DictConfig):
     else:
         sampler = optuna.samplers.RandomSampler(seed=cfg.seed)
 
-    with mlflow.start_run(run_name=f"hpo_{cfg.hpo.sampler}") as parent:
+    with mlflow.start_run(run_name=f"hpo_{cfg.hpo.sampler}"):
 
-        study = optuna.create_study(
-            direction="minimize",
-            sampler=sampler
-        )
+        study = optuna.create_study(direction="minimize", sampler=sampler)
 
-        objective = objective_factory(cfg,
-                                       X_train, X_test,
-                                       y_train, y_test)
+        objective = objective_factory(cfg, X_train, X_test, y_train, y_test)
 
-        study.optimize(objective,
-                       n_trials=cfg.hpo.n_trials)
+        study.optimize(objective, n_trials=cfg.hpo.n_trials)
 
         best_params = study.best_params
         mlflow.log_dict(best_params, "best_params.json")
@@ -163,8 +143,8 @@ def main(cfg: DictConfig):
         joblib.dump(best_model, "models/best_model.pkl")
         mlflow.log_artifact("models/best_model.pkl")
 
-        mlflow.sklearn.log_model(best_model,
-                                 artifact_path="model")
+        mlflow.sklearn.log_model(best_model, artifact_path="model")
+
 
 if __name__ == "__main__":
     main()
