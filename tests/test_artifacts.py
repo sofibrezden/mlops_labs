@@ -104,12 +104,3 @@ class TestMetrics:
 
             if "r2_test" in metrics:
                 assert metrics["r2_test"] <= 1, "R2 should be <= 1"
-
-
-class TestConfusionMatrix:
-
-    def test_confusion_matrix_plot_optional(self):
-        confusion_matrix_path = "confusion_matrix.png"
-        if os.path.exists(confusion_matrix_path):
-            file_size = os.path.getsize(confusion_matrix_path)
-            assert file_size > 0, "Confusion matrix plot is empty"

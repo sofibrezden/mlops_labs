@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 venv/
+.venv/
 .env
 data/*
 !data/**/*.dvc
@@ -10,4 +11,20 @@ data/*
 models/
 .ipynb_checkpoints
 mlruns/
+mlartifacts/
 .trash/
+
+# MLflow
+*.db
+*.db-shm
+*.db-wal
+optimize.log
+
+# Airflow
+airflow/logs/
+airflow/__pycache__/
+airflow/dags/__pycache__/
+
+# Docker volumes
+postgres-db-volume/
+mlflow-db-volume/

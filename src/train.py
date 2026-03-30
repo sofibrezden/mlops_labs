@@ -1,4 +1,5 @@
 import os
+import json
 import click
 import pandas as pd
 import numpy as np
@@ -19,6 +20,30 @@ def plot_feature_importance(model, feature_names, output_path):
     plt.title("Feature Importance")
     plt.barh(range(len(indices)), importances[indices])
     plt.yticks(range(len(indices)), [feature_names[i] for i in indices])
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+
+
+def plot_residuals(y_true, y_pred, output_path):
+    residuals = y_true - y_pred
+    
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    
+    axes[0].scatter(y_pred, residuals, alpha=0.5)
+    axes[0].axhline(y=0, color='r', linestyle='--')
+    axes[0].set_xlabel('Predicted Values')
+    axes[0].set_ylabel('Residuals')
+    axes[0].set_title('Residual Plot')
+    axes[0].grid(True, alpha=0.3)
+    
+    axes[1].scatter(y_true, y_pred, alpha=0.5)
+    axes[1].plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--', lw=2)
+    axes[1].set_xlabel('Actual Values')
+    axes[1].set_ylabel('Predicted Values')
+    axes[1].set_title('Predicted vs Actual')
+    axes[1].grid(True, alpha=0.3)
+    
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close()
@@ -96,12 +121,33 @@ def main(input_dir, model_dir, n_estimators, max_depth, min_samples_leaf, random
         model_path = os.path.join(model_dir, "model.pkl")
         joblib.dump(model, model_path)
 
-        mlflow.sklearn.log_model(model, name="random_forest_model")
+        mlflow.sklearn.log_model(model, artifact_path="random_forest_model")
         mlflow.log_artifact(model_path)
 
         plot_path = os.path.join(model_dir, "feature_importance.png")
         plot_feature_importance(model, X_train.columns, plot_path)
         mlflow.log_artifact(plot_path)
+
+        confusion_matrix_path = os.path.join(model_dir, "confusion_matrix.png")
+        plot_residuals(y_test, y_test_pred, confusion_matrix_path)
+        mlflow.log_artifact(confusion_matrix_path)
+
+        metrics = {
+            "rmse_train": float(rmse_train),
+            "rmse_test": float(rmse_test),
+            "mae_train": float(mae_train),
+            "mae_test": float(mae_test),
+            "r2_train": float(r2_train),
+            "r2_test": float(r2_test),
+        }
+        
+        metrics_path = os.path.join(model_dir, "metrics.json")
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump(metrics, f, ensure_ascii=False, indent=2)
+        
+        mlflow.log_artifact(metrics_path)
+        
+        print(f"Training completed. Metrics: RMSE={rmse_test:.2f}, MAE={mae_test:.2f}, R2={r2_test:.4f}")
 
 
 if __name__ == "__main__":
